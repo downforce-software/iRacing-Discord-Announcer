@@ -19,7 +19,7 @@ Built using:
 7. Create a new virtual environment: `virtualenv env`
 8. Fire up the virtual env: `env\Scripts\activate.bat`
 9. Install the required python libs: `pip install -r requirements.txt`
-10. Create a new discord bot account: https://discordpy.readthedocs.io/en/latest/discord.html#creating-a-bot-account - copy the Token, you'll need this for the command line
+10. Create a new discord application and add a bot: https://discordpy.readthedocs.io/en/latest/discord.html#creating-a-bot-account - copy the Token, you'll need this for the command line
 11. Find your Discord User ID: https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-
 12. Run the bot: `python ir-announcer-bot.py --token [TOKEN FROM STEP 10] --owner [YOUR DISCORD USER ID] --channel [CHAN THE BOT WILL ANNOUNCE IN]`
 13. Invite your bot to your server: https://discordpy.readthedocs.io/en/latest/discord.html#inviting-your-bot
