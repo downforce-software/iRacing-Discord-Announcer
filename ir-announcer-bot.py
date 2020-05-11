@@ -199,9 +199,6 @@ class Announcer(Cog):
     async def disconnect(self):
         """Does all the things required when the bot becomes disconnected from iRacing"""
 
-        # if battles mode was on, stop it
-        if self.battlemode.get_task():
-            self.battlemode.stop()
         # change our connected state
         self.bot.ir_connected = False
         # shutdown the API connection
@@ -218,7 +215,7 @@ class Announcer(Cog):
             # was connected, but now isn't... shut it all down
             if self.bot.ir_connected and not (self.ir.is_initialized and self.ir.is_connected):
                 # if battles mode was on, stop it
-                self.disconnect()
+                await self.disconnect()
 
             # wasn't connected, but now is... initialise the base stuff we need
             elif not self.bot.ir_connected and self.ir.startup() and self.ir.is_initialized and self.ir.is_connected:
@@ -251,13 +248,13 @@ class Announcer(Cog):
                     sess_tracklen = float(str.split(self.ir['WeekendInfo']['TrackLength'], ' ')[0]) * 1000
 
                     # announce any changes
-                    if self.ir.session.trackid != sess_trackid:
-                        await self.sendmsg("Track: {}".format(self.ir['WeekendInfo']['TrackDisplayName']))
-                        await self.sendmsg("Track Temp: {}".format(self.ir['WeekendInfo']['TrackSurfaceTemp']))
                     if self.ir.session.num != sess_num:
                         await self.sendmsg("Session Type: {}".format(sess_type))
                     if self.ir.session.state != sess_state:
                         await self.sendmsg("Session State: {}".format(sess_state_name))
+                    if self.ir.session.trackid != sess_trackid:
+                        await self.sendmsg("Track: {}".format(self.ir['WeekendInfo']['TrackDisplayName']))
+                        await self.sendmsg("Track Temp: {}".format(self.ir['WeekendInfo']['TrackSurfaceTemp']))
 
                     # update our session obj with the new details
                     self.ir.session = Session(
