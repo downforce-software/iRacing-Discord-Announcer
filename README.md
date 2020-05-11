@@ -10,7 +10,7 @@ Built using:
 
 ## Getting started
 
-1. Install Python 3.8 on your streaming PC: https://www.python.org/downloads/release/python-382/
+1. Install Python 3.8 on your PC: https://www.python.org/downloads/release/python-382/
 2. Install PIP and virtualenv: https://programwithus.com/learn-to-code/Pip-and-virtualenv-on-Windows/
 3. Download the latest release: https://github.com/Fuzzwah/iRacing-Discord-Announcer
 4. Unzip the files into a `iRacing-Discord-Announcer` folder
