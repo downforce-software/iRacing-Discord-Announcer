@@ -12,6 +12,7 @@ import sys
 import re
 import math
 import pprint
+from copy import deepcopy
 from dataclasses import dataclass
 import argparse
 import logging, logging.handlers
@@ -160,7 +161,7 @@ class Announcer(Cog):
                         driver.offtrack = False                    
                     driver.carclass = d['CarClassShortName']
                     driver.carclassid = d['CarClassID']
-                    if self.bot.heroidx == d['CarIdx']:
+                    if self.ir['DriverInfo']['DriverCarIdx'] == d['CarIdx']:
                         self.bot.hero = driver
                     self.ir.drivers.append(driver)
                     # add classid to our list if we haven't see it before
@@ -238,54 +239,55 @@ class Announcer(Cog):
                 # freeze the API data
                 self.ir.freeze_var_buffer_latest()
 
-                sess_change = False
                 sess_new = False
-
+                qual_end = False
+                race_end = False
 
                 # if session changed, lets update the base stuff
                 if self.ir.session.num != self.ir['SessionNum'] or \
                     self.ir.session.state != self.ir['SessionState'] or \
                     self.ir.session.trackid != self.ir['WeekendInfo']['TrackID']:
 
-                    sess_change = True
-
-                    # save out the updated data so we can compare with the bot's session object (from previous tick)
-                    sess_num = self.ir['SessionNum']
-                    sess_type = self.ir['SessionInfo']['Sessions'][self.ir['SessionNum']]['SessionType']
-                    sess_state_name = ' '.join(w.capitalize() for w in session_states[self.ir['SessionState']].split('_'))
-                    sess_state = self.ir['SessionState']
-                    sess_trackid = self.ir['WeekendInfo']['TrackID']
-                    sess_tracklen = float(str.split(self.ir['WeekendInfo']['TrackLength'], ' ')[0]) * 1000
-
-                    # announce any changes
-                    if self.ir.session.num != sess_num:
-                        await self.sendmsg("Session Type: {}".format(sess_type))
-                        sess_new = True
-                    if self.ir.session.state != sess_state:
-                        await self.sendmsg("Session State: {}".format(sess_state_name))
-                    if self.ir.session.trackid != sess_trackid:
-                        await self.sendmsg("Track: {}".format(self.ir['WeekendInfo']['TrackDisplayName']))
-                        await self.sendmsg("Track Temp: {}".format(self.ir['WeekendInfo']['TrackSurfaceTemp']))
+                    # take a copy of the "old" session data
+                    prev_session = deepcopy(self.ir.session)
 
                     # update our session obj with the new details
                     self.ir.session = Session(
-                            num=sess_num, 
-                            type=sess_type, 
-                            state_name=sess_state_name, 
-                            state=sess_state,
-                            trackid=sess_trackid,
-                            tracklen=sess_tracklen
-                        )
+                            num=self.ir['SessionNum'], 
+                            type=self.ir['SessionInfo']['Sessions'][self.ir['SessionNum']]['SessionType'], 
+                            state_name=' '.join(w.capitalize() for w in session_states[self.ir['SessionState']].split('_')), 
+                            state=self.ir['SessionState'],
+                            trackid=self.ir['WeekendInfo']['TrackID'],
+                            tracklen=float(str.split(self.ir['WeekendInfo']['TrackLength'], ' ')[0]) * 1000
+                        )                    
+
+                    # set a variable if this is a new session
+                    if self.ir.session.num != prev_session.num:
+                        sess_new = True
+                    # if it isn't a new session, but the state changed; announce it
+                    elif self.ir.session.state != prev_session.state:
+                        if sess_new and prev_session.type in ["Qualify", "Lone Qualify"]:
+                            qual_end = True
+                        elif self.ir.session.type == "Race" and self.ir.session.state == irsdk.SessionState.cool_down:
+                            race_end = True
 
                 # update the list of Driver objects in order of position
                 self.update_drivers()
 
                 if self.bot.hero and sess_new:
-                    await self.sendmsg("Car: {}".format(self.bot.hero.car))
-                
-                if self.bot.hero and sess_change:
-                    await self.sendmsg("Position: {}".format(self.bot.hero.pos))
+                    msg = "{hero_name} joined a {sess_type} session driving the {car} at {track} ({temp})".format(
+                            hero_name=self.bot.hero.name,
+                            sess_type=sess_type,
+                            car=self.bot.hero.car,
+                            track=self.ir['WeekendInfo']['TrackDisplayName'],
+                            temp=self.ir['WeekendInfo']['TrackSurfaceTemp']
 
+                        )
+                    await self.sendmsg(msg)
+                elif self.bot.hero and race_end:
+                    await self.sendmsg("Race complete, {} finished {}".format(self.bot.hero.name, ordinal(self.bot.hero.startpos)))
+                elif self.bot.hero and qual_end:
+                    await self.sendmsg("Qualifying finished, {} will start in {}".format(self.bot.hero.name, ordinal(self.bot.hero.startpos)))
 
                 # unfreeze the API data
                 self.ir.unfreeze_var_buffer_latest()
