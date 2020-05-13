@@ -65,6 +65,7 @@ class Driver:
     num: int = None
     name: str = None
     teamname: str = None
+    car: str = None
     ir: int = None
     onpitroad: bool = None
     offtrack: bool = None
@@ -146,6 +147,7 @@ class Announcer(Cog):
                     driver.num = int(d['CarNumber'])
                     driver.name = d['UserName']
                     driver.teamname = d['TeamName']
+                    driver.car = d['CarScreenName']
                     driver.ir = d['IRating']
                     driver.onpitroad = bool(self.ir['CarIdxOnPitRoad'][d['CarIdx']])
                     if self.ir['CarIdxTrackSurface'][d['CarIdx']] == irsdk.TrkLoc.not_in_world:
@@ -158,6 +160,8 @@ class Announcer(Cog):
                         driver.offtrack = False                    
                     driver.carclass = d['CarClassShortName']
                     driver.carclassid = d['CarClassID']
+                    if self.bot.heroidx == d['CarIdx']:
+                        self.bot.hero = driver
                     self.ir.drivers.append(driver)
                     # add classid to our list if we haven't see it before
                     if d['CarClassID'] not in self.ir.classids:
@@ -223,8 +227,8 @@ class Announcer(Cog):
                 self.bot.ir_connected = True
                 # empty our session state
                 self.ir.session = Session()
-                # turn off the UI
-                self.ir.cam_set_state(irsdk.CameraState.ui_hidden)
+                # get our hero's CarIDx
+                self.bot.heroidx = self.ir['DriverInfo']['DriverCarIdx']
                 # announce the change to the channel
                 await self.sendmsg("Connected to iRacing client")
                 return True
@@ -234,10 +238,16 @@ class Announcer(Cog):
                 # freeze the API data
                 self.ir.freeze_var_buffer_latest()
 
+                sess_change = False
+                sess_new = False
+
+
                 # if session changed, lets update the base stuff
                 if self.ir.session.num != self.ir['SessionNum'] or \
                     self.ir.session.state != self.ir['SessionState'] or \
                     self.ir.session.trackid != self.ir['WeekendInfo']['TrackID']:
+
+                    sess_change = True
 
                     # save out the updated data so we can compare with the bot's session object (from previous tick)
                     sess_num = self.ir['SessionNum']
@@ -250,6 +260,7 @@ class Announcer(Cog):
                     # announce any changes
                     if self.ir.session.num != sess_num:
                         await self.sendmsg("Session Type: {}".format(sess_type))
+                        sess_new = True
                     if self.ir.session.state != sess_state:
                         await self.sendmsg("Session State: {}".format(sess_state_name))
                     if self.ir.session.trackid != sess_trackid:
@@ -268,6 +279,13 @@ class Announcer(Cog):
 
                 # update the list of Driver objects in order of position
                 self.update_drivers()
+
+                if self.bot.hero and sess_new:
+                    await self.sendmsg("Car: {}".format(self.bot.hero.car))
+                
+                if self.bot.hero and sess_change:
+                    await self.sendmsg("Position: {}".format(self.bot.hero.pos))
+
 
                 # unfreeze the API data
                 self.ir.unfreeze_var_buffer_latest()
@@ -311,7 +329,9 @@ class App(object):
 
     def setup(self):
         self.ir = irsdk.IRSDK()
-        self.bot.ir_connected = False        
+        self.bot.ir_connected = False
+        self.bot.hero = None
+        self.bot.heroidx = None
         self.bot.add_cog(Announcer(self.bot, self.ir))
         
         @self.bot.event
